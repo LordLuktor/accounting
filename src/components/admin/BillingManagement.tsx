@@ -59,7 +59,7 @@ const BillingSettings: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className={`text-center p-4 rounded-lg border ${
               isSuper ? 'bg-purple-50 border-purple-200' : 'bg-green-50 border-green-200'
-            }`}>
+            }`}> 
               <p className={`text-sm mb-1 ${isSuper ? 'text-purple-600' : 'text-green-600'}`}>Account Type</p>
               <p className={`text-xl font-bold ${isSuper ? 'text-purple-800' : 'text-green-800'}`}>
                 {isSuper ? 'Super Free' : 'Free'}
@@ -205,7 +205,7 @@ const BillingSettings: React.FC = () => {
           {plans.map((plan) => (
             <div key={plan.id} className={`border-2 rounded-xl p-6 transition-colors ${
               plan.current ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
-            }`}>
+            }`}> 
               <div className="text-center mb-4">
                 <h4 className="text-lg font-semibold text-slate-800 mb-2">{plan.name}</h4>
                 <div className="mb-4">
@@ -266,8 +266,11 @@ const BillingSettings: React.FC = () => {
               <p className="text-sm text-slate-600">Expires 12/25</p>
             </div>
           </div>
-          <button className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
-            Update
+          <button
+            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            onClick={() => setShowPaymentForm(true)}
+          >
+            Manage
           </button>
         </div>
       </div>
