@@ -4,44 +4,36 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: accuflow-postgres
     environment:
       POSTGRES_DB: accuflow
       POSTGRES_USER: accuflow
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
     networks:
       - accuflow-network
-    restart: unless-stopped
 
   # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: accuflow-backend
+    image: node:18-alpine
+    working_dir: /app
     environment:
       NODE_ENV: production
       PORT: 3000
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: accuflow
-      DB_PASSWORD: password
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: accuflow
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: https://${FRONTEND_DOMAIN}
     depends_on:
       - postgres
     volumes:
       - ./backend:/app
-      - /app/node_modules
+    command: sh -c "cd /app && npm install && npm run build && npm start"
     networks:
       - accuflow-network
-    restart: unless-stopped
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.apiaccountingsteinmetzltd.rule=Host(`${BACKEND_DOMAIN}`)"
@@ -51,50 +43,25 @@ services:
 
   # Frontend
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: accuflow-frontend
+    image: node:18-alpine
+    working_dir: /app
     environment:
-      VITE_API_URL: ${BACKEND_URL:-https://api.accuflow.local}
+      VITE_API_URL: https://${BACKEND_DOMAIN}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run build && npx serve -s dist -l 3000"
     networks:
       - accuflow-network
-    restart: unless-stopped
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.accountingsteinmetzltd.rule=Host(`${FRONTEND_DOMAIN}`)"
       - "traefik.http.routers.accountingsteinmetzltd.tls=true"
       - "traefik.http.routers.accountingsteinmetzltd.tls.certresolver=letsencrypt"
-      - "traefik.http.services.accountingsteinmetzltd.loadbalancer.server.port=80"
-
-  # Traefik Reverse Proxy
-  traefik:
-    image: traefik:v3.0
-    container_name: accuflow-traefik
-    command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--global.sendanonymoususage=false"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
-    networks:
-      - accuflow-network
-    restart: unless-stopped
+      - "traefik.http.services.accountingsteinmetzltd.loadbalancer.server.port=3000"
 
 volumes:
   postgres_data:
-  traefik_letsencrypt:
 
 networks:
   accuflow-network:
