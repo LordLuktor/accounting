@@ -14,9 +14,6 @@ services:
       - traefik-public
     deploy:
       replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
 
   # Backend API
   backend:
@@ -32,21 +29,30 @@ services:
       DB_NAME: accuflow
       JWT_SECRET: ${JWT_SECRET:-a8f5f167f44f4964e6c998dee827110c8c94f0b8e8c8e8f8e8c8e8f8e8c8e8f8}
       FRONTEND_URL: https://${FRONTEND_DOMAIN:-accounting.steinmetz.ltd}
-    depends_on:
-      - postgres
     volumes:
       - ./backend:/app
-    command: sh -c "cd /app && npm install && npm run build && npm start"
+    command: >
+      sh -c "
+        apk add --no-cache python3 make g++ &&
+        npm install &&
+        npm run build &&
+        sleep 10 &&
+        npm start
+      "
     networks:
       - traefik-public
     deploy:
       replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.apiaccountingsteinmetzltd.rule=Host(`${BACKEND_DOMAIN:-api.accounting.steinmetz.ltd}`)"
-        - "traefik.http.routers.apiaccountingsteinmetzltd.tls=true"
-        - "traefik.http.routers.apiaccountingsteinmetzltd.tls.certresolver=letsencrypt"
-        - "traefik.http.services.apiaccountingsteinmetzltd.loadbalancer.server.port=3000"
+        - "traefik.http.routers.backend.rule=Host(`${BACKEND_DOMAIN:-api.accounting.steinmetz.ltd}`)"
+        - "traefik.http.routers.backend.tls=true"
+        - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+        - "traefik.http.services.backend.loadbalancer.server.port=3000"
 
   # Frontend
   frontend:
@@ -56,18 +62,26 @@ services:
       VITE_API_URL: https://${BACKEND_DOMAIN:-api.accounting.steinmetz.ltd}
     volumes:
       - ./:/app
-      - /app/node_modules
-    command: sh -c "npm install && npm run build && npx serve -s dist -l 3000"
+    command: >
+      sh -c "
+        npm install &&
+        npm run build &&
+        npx serve -s dist -l 3000
+      "
     networks:
       - traefik-public
     deploy:
       replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.accountingsteinmetzltd.rule=Host(`${FRONTEND_DOMAIN:-accounting.steinmetz.ltd}`)"
-        - "traefik.http.routers.accountingsteinmetzltd.tls=true"
-        - "traefik.http.routers.accountingsteinmetzltd.tls.certresolver=letsencrypt"
-        - "traefik.http.services.accountingsteinmetzltd.loadbalancer.server.port=3000"
+        - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_DOMAIN:-accounting.steinmetz.ltd}`)"
+        - "traefik.http.routers.frontend.tls=true"
+        - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+        - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
 volumes:
   postgres_data:
