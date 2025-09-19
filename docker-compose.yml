@@ -7,11 +7,11 @@ services:
     environment:
       POSTGRES_DB: accuflow
       POSTGRES_USER: accuflow
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ApexWeb2025!}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - accuflow-network
+      - traefik-public
     deploy:
       replicas: 1
       placement:
@@ -28,43 +28,43 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: accuflow
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD:-ApexWeb2025!}
       DB_NAME: accuflow
-      JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: https://${FRONTEND_DOMAIN}
+      JWT_SECRET: ${JWT_SECRET:-a8f5f167f44f4964e6c998dee827110c8c94f0b8e8c8e8f8e8c8e8f8e8c8e8f8}
+      FRONTEND_URL: https://${FRONTEND_DOMAIN:-accounting.steinmetz.ltd}
+    depends_on:
+      - postgres
     volumes:
       - ./backend:/app
     command: sh -c "cd /app && npm install && npm run build && npm start"
     networks:
-      - accuflow-network
+      - traefik-public
     deploy:
       replicas: 1
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.apiaccountingsteinmetzltd.rule=Host(`${BACKEND_DOMAIN}`)"
+        - "traefik.http.routers.apiaccountingsteinmetzltd.rule=Host(`${BACKEND_DOMAIN:-api.accounting.steinmetz.ltd}`)"
         - "traefik.http.routers.apiaccountingsteinmetzltd.tls=true"
         - "traefik.http.routers.apiaccountingsteinmetzltd.tls.certresolver=letsencrypt"
         - "traefik.http.services.apiaccountingsteinmetzltd.loadbalancer.server.port=3000"
-    depends_on:
-      - postgres
 
   # Frontend
   frontend:
     image: node:18-alpine
     working_dir: /app
     environment:
-      VITE_API_URL: https://${BACKEND_DOMAIN}
+      VITE_API_URL: https://${BACKEND_DOMAIN:-api.accounting.steinmetz.ltd}
     volumes:
       - ./:/app
       - /app/node_modules
     command: sh -c "npm install && npm run build && npx serve -s dist -l 3000"
     networks:
-      - accuflow-network
+      - traefik-public
     deploy:
       replicas: 1
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.accountingsteinmetzltd.rule=Host(`${FRONTEND_DOMAIN}`)"
+        - "traefik.http.routers.accountingsteinmetzltd.rule=Host(`${FRONTEND_DOMAIN:-accounting.steinmetz.ltd}`)"
         - "traefik.http.routers.accountingsteinmetzltd.tls=true"
         - "traefik.http.routers.accountingsteinmetzltd.tls.certresolver=letsencrypt"
         - "traefik.http.services.accountingsteinmetzltd.loadbalancer.server.port=3000"
@@ -73,6 +73,5 @@ volumes:
   postgres_data:
 
 networks:
-  accuflow-network:
-    driver: overlay
-    attachable: true
+  traefik-public:
+    external: true
